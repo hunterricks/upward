@@ -1,31 +1,41 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { withAuth } from "next-auth/middleware"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
 // List of public routes that don't require authentication
 const publicRoutes = ['/', '/login', '/register']
 
-export function middleware(request: NextRequest) {
-  // Check if the route is public
-  const isPublicRoute = publicRoutes.some(route => 
-    request.nextUrl.pathname === route || 
-    request.nextUrl.pathname.startsWith('/_next') ||
-    request.nextUrl.pathname.startsWith('/images')
-  )
+export default withAuth(
+  function middleware(req: NextRequest) {
+    return NextResponse.next()
+  },
+  {
+    callbacks: {
+      authorized({ req, token }) {
+        const { pathname } = req.nextUrl
+        
+        // Allow public routes
+        if (publicRoutes.some(route => pathname.startsWith(route))) {
+          return true
+        }
 
-  // Get the token from the session (you'll need to implement this based on your auth strategy)
-  const token = request.cookies.get('auth-token')
-
-  // If the route is not public and there's no token, redirect to login
-  if (!isPublicRoute && !token) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('from', request.nextUrl.pathname)
-    return NextResponse.redirect(loginUrl)
+        // Require authentication for all other routes
+        return !!token
+      },
+    },
   }
+)
 
-  // If we have a token and we're on a public route (like login), redirect to dashboard
-  if (token && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
-  return NextResponse.next()
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except:
+     * 1. /api/auth/* (authentication routes)
+     * 2. /_next/* (Next.js internals)
+     * 3. /fonts/* (inside public directory)
+     * 4. /images/* (inside public directory)
+     * 5. /*.png, /*.jpg, etc. (static files)
+     */
+    "/((?!api/auth|_next|fonts|images|[\\w-]+\\.\\w+).*)",
+  ],
 }

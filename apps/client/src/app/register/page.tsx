@@ -1,3 +1,5 @@
+'use client'
+
 import { AuthForm } from '@/components/auth/auth-form'
 import Image from 'next/image'
 
@@ -12,7 +14,7 @@ export default function RegisterPage() {
               Create your account
             </h1>
             <p className="mt-2 text-sm text-gray-600">
-              Join UPWARD™ and start managing your design projects with ease.
+              Join UPWARD and start managing your design projects with ease.
             </p>
           </div>
 
@@ -42,7 +44,7 @@ export default function RegisterPage() {
         <div className="absolute inset-0 flex items-end z-20 p-20">
           <div className="text-white">
             <blockquote className="text-xl font-semibold">
-              "UPWARD™ has transformed how we manage our design projects. The platform is intuitive and powerful."
+              "UPWARD has transformed how we manage our design projects. The platform is intuitive and powerful."
             </blockquote>
             <p className="mt-4">
               <span className="font-semibold">Sarah Johnson</span> • Creative Director at Studio Nine
