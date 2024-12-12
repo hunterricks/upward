@@ -15,11 +15,12 @@ export default function LoginPage() {
       const result = await signIn('credentials', {
         ...data,
         callbackUrl: from || '/dashboard',
-        redirect: false,
+        redirect: true,
       })
 
       if (result?.error) {
         console.error('Login error:', result.error)
+        // Error will be shown through the error parameter in the URL
       }
     } catch (error) {
       console.error('Login error:', error)
