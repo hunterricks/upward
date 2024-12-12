@@ -1,0 +1,6 @@
+tunnel: upward-client-new
+credentials-file: /Users/hunterricks/.cloudflared/43bdb073-08f6-42b9-8d7d-c877975bda2b.json
+ingress:
+  - hostname: app.upwardwebdesign.com
+    service: http://localhost:3000
+  - service: http_status:404

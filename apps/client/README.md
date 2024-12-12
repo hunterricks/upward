@@ -33,6 +33,13 @@ The client portal for UPWARD design and development studio. This application pro
 
 ## Development
 
+### Prerequisites
+- Node.js 18+
+- pnpm
+- Cloudflared CLI (for tunnel access)
+
+### Setup
+
 ```bash
 # Install dependencies
 pnpm install
@@ -42,53 +49,55 @@ pnpm prisma generate
 
 # Run database migrations
 pnpm prisma migrate dev
+```
 
-# Start development server
+### Development Commands
+
+```bash
+# Start development server with Cloudflare tunnel (default)
+# This will automatically:
+# - Clean up any existing processes on required ports
+# - Start the Next.js server on port 3000
+# - Start the Cloudflare tunnel for remote access
 pnpm dev
+
+# Start development server locally only (no tunnel)
+pnpm dev:local
 
 # Build for production
 pnpm build
 ```
 
-## Environment Variables
+### Development URLs
+- Local: http://localhost:3000
+- Remote: https://app.upwardwebdesign.com (via Cloudflare tunnel)
 
-Create a `.env` file in the root directory with the following variables:
+### Environment Variables
+Make sure to set up your `.env` file with the following variables:
+```env
+# Base URL for NextAuth
+NEXTAUTH_URL="https://app.upwardwebdesign.com"
+NEXTAUTH_SECRET="your-secret-here"
 
-```bash
 # Database
-DATABASE_URL="postgresql://user:password@localhost:5432/upward_client"
-
-# NextAuth
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-generated-secret-key"
+DATABASE_URL="your-database-url"
 
 # OAuth Providers
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
-
-APPLE_ID="your-apple-id"
-APPLE_SECRET="your-apple-secret"
 ```
 
-### OAuth Setup
+### Cloudflare Tunnel
+The application uses Cloudflare Tunnel for secure remote access during development. The tunnel configuration is stored in `tunnel-config.yml` and is automatically started with the development server.
 
-#### Google OAuth
-1. Go to the [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project or select an existing one
-3. Enable the Google+ API
-4. Go to Credentials → Create Credentials → OAuth 2.0 Client ID
-5. Configure the OAuth consent screen
-6. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
-7. Copy the client ID and secret to your `.env` file
+To manually manage the tunnel:
+```bash
+# View tunnel status
+cloudflared tunnel list
 
-#### Apple Sign In
-1. Go to the [Apple Developer Console](https://developer.apple.com)
-2. Register a new App ID if you haven't already
-3. Enable "Sign In with Apple" capability
-4. Create a Services ID and configure domains
-5. Configure the return URL: `http://localhost:3000/api/auth/callback/apple`
-6. Generate a key and download it
-7. Copy the necessary credentials to your `.env` file
+# Start tunnel manually
+cloudflared tunnel --config tunnel-config.yml run
+```
 
 ## Security
 
