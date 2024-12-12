@@ -36,20 +36,50 @@ The client portal for UPWARD design and development studio. This application pro
 ### Prerequisites
 - Node.js 18+
 - pnpm
+- PostgreSQL 14+
 - Cloudflared CLI (for tunnel access)
 
 ### Setup
 
+1. Install dependencies:
 ```bash
-# Install dependencies
 pnpm install
-
-# Generate Prisma client
-pnpm prisma generate
-
-# Run database migrations
-pnpm prisma migrate dev
 ```
+
+2. Set up your PostgreSQL database:
+```bash
+# Create the database if it doesn't exist
+createdb upward_client
+```
+
+3. Set up your environment variables in `.env`:
+```env
+# Database
+DATABASE_URL="postgresql://username@localhost:5432/upward_client"
+
+# NextAuth
+NEXTAUTH_URL="https://app.upwardwebdesign.com"  # Use http://localhost:3002 for local-only development
+NEXTAUTH_SECRET="your-secret-here"
+
+# OAuth Provider
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+```
+
+### Google OAuth Setup
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project or select an existing one
+3. Enable the Google+ API
+4. Go to Credentials → Create Credentials → OAuth 2.0 Client ID
+5. Configure the OAuth consent screen
+6. Add authorized redirect URIs:
+   - `http://localhost:3002/api/auth/callback/google` (for local development)
+   - `https://app.upwardwebdesign.com/api/auth/callback/google` (for production)
+7. Add authorized JavaScript origins:
+   - `http://localhost:3002` (for local development)
+   - `https://app.upwardwebdesign.com` (for production)
+8. Copy the client ID and secret to your `.env` file
 
 ### Development Commands
 
@@ -57,7 +87,7 @@ pnpm prisma migrate dev
 # Start development server with Cloudflare tunnel (default)
 # This will automatically:
 # - Clean up any existing processes on required ports
-# - Start the Next.js server on port 3000
+# - Start the Next.js server on port 3002
 # - Start the Cloudflare tunnel for remote access
 pnpm dev
 
@@ -66,57 +96,29 @@ pnpm dev:local
 
 # Build for production
 pnpm build
+
+# Start production server
+pnpm start
 ```
 
 ### Development URLs
-- Local: http://localhost:3000
-- Remote: https://app.upwardwebdesign.com (via Cloudflare tunnel)
-
-### Environment Variables
-Make sure to set up your `.env` file with the following variables:
-```env
-# Base URL for NextAuth
-NEXTAUTH_URL="https://app.upwardwebdesign.com"
-NEXTAUTH_SECRET="your-secret-here"
-
-# Database
-DATABASE_URL="your-database-url"
-
-# OAuth Providers
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-```
+- Local development: http://localhost:3002
+- Remote access: https://app.upwardwebdesign.com (via Cloudflare tunnel)
 
 ### Cloudflare Tunnel
-The application uses Cloudflare Tunnel for secure remote access during development. The tunnel configuration is stored in `tunnel-config.yml` and is automatically started with the development server.
+The application automatically starts a Cloudflare tunnel when using `pnpm dev`. This provides:
+- Secure remote access to your local development server
+- Proper OAuth callback handling for remote testing
+- Automatic port management and cleanup
 
-To manually manage the tunnel:
+The tunnel configuration is stored in `tunnel-config.yml`. You can also manage the tunnel manually:
 ```bash
 # View tunnel status
 cloudflared tunnel list
 
-# Start tunnel manually
+# Start tunnel manually (if needed)
 cloudflared tunnel --config tunnel-config.yml run
 ```
-
-## Security
-
-- All environment variables are git-ignored
-- Sessions are encrypted using a secure secret key
-- OAuth tokens are securely stored in the database
-- Protected API routes and middleware for authenticated access
-- CSRF protection enabled
-- Secure cookie handling
-
-## Database Schema
-
-The application uses Prisma as the ORM with the following main models:
-- User (for authentication and user data)
-- Account (for OAuth provider accounts)
-- Session (for managing user sessions)
-- VerificationToken (for email verification)
-
-For detailed schema information, see `prisma/schema.prisma`.
 
 ## Project Structure
 
@@ -135,26 +137,26 @@ src/
 └── styles/              # Global styles and Tailwind configuration
 ```
 
-## UI Components
+## Database Schema
 
-### Authentication Pages
-- Modern split-screen layout with branded imagery
-- Responsive design that works on all device sizes
-- Form validation with error messages
-- Loading states and success feedback
-- Social sign-in buttons with brand colors
-- Clean typography and spacing following design system
+The application uses Prisma with PostgreSQL. Key models include:
+- User: Authentication and user profile
+- Account: OAuth provider accounts
+- Session: User sessions
+- VerificationToken: Email verification
 
-### Styling
-- Built with Tailwind CSS for consistent styling
-- Responsive design principles
-- Dark mode support (coming soon)
-- Custom animations and transitions
-- Accessibility-first approach
+## Security
+
+- All routes except public pages (/login, /register) require authentication
+- Sessions are managed using JWT strategy
+- OAuth 2.0 for secure third-party authentication
+- Database credentials and secrets are managed through environment variables
+- Automatic port cleanup before development server starts
+- Secure tunnel configuration for remote access
 
 ## Contributing
 
-1. Follow the TypeScript conventions
-2. Use the shared UI components from `@upward/ui`
-3. Maintain consistent styling with Tailwind CSS
-4. Write meaningful commit messages
+1. Create a feature branch (`git checkout -b feature/amazing-feature`)
+2. Commit your changes (`git commit -m 'Add amazing feature'`)
+3. Push to the branch (`git push origin feature/amazing-feature`)
+4. Open a Pull Request
