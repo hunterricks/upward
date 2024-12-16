@@ -71,7 +71,7 @@ export const authOptions: AuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: '/login',
-    error: '/login',
+    error: '/auth/error',
     verifyRequest: '/verify-request',
     newUser: '/onboarding'
   },
@@ -99,48 +99,44 @@ export const authOptions: AuthOptions = {
       return token
     },
     async session({ session, token }) {
-      if (!token) {
-        return null // User was deleted, end session
-      }
-
-      if (session.user) {
+      if (token) {
         session.user.id = token.id as string
         session.user.role = token.role as string
         session.user.emailVerified = token.emailVerified as Date
+        session.provider = token.provider as string
       }
       return session
     },
-    async redirect({ url, baseUrl }) {
-      // After sign in, redirect to dashboard
-      if (url === '/api/auth/signin' || url === '/login' || url === '/register') {
-        return `${baseUrl}/dashboard`
-      }
-      // If the url starts with baseUrl, allow it
-      if (url.startsWith(baseUrl)) {
-        return url
-      }
-      // For relative URLs, prefix with baseUrl
-      if (url.startsWith('/')) {
-        return `${baseUrl}${url}`
-      }
-      // Default to baseUrl
-      return baseUrl
-    }
-  },
-  events: {
-    async signIn({ user, account, profile, isNewUser }) {
-      if (isNewUser) {
-        // Update user with additional info
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            role: 'user',
-            emailVerified: account?.provider === 'credentials' ? null : new Date(),
+    async signIn({ user, account, profile }) {
+      try {
+        if (account?.provider === 'google') {
+          if (!profile?.email) {
+            console.error('No email provided by Google')
+            return false
           }
-        })
 
-        // If email provider, send verification email
-        if (account?.provider === 'credentials' && user.email) {
+          // Check if user exists
+          const existingUser = await prisma.user.findUnique({
+            where: { email: profile.email }
+          })
+
+          if (!existingUser) {
+            // Create new user for Google sign in - automatically verified
+            await prisma.user.create({
+              data: {
+                email: profile.email,
+                name: profile.name ?? profile.email.split('@')[0],
+                emailVerified: new Date(), // Auto-verified for Google
+                image: profile.image ?? null,
+                role: 'user',
+              }
+            })
+          }
+          return true
+        }
+
+        // Only send verification for credentials provider
+        if (account?.provider === 'credentials' && !user.emailVerified && user.email) {
           try {
             const token = await generateVerificationToken(user.id)
             const emailData = generateVerificationEmail(user.email, token)
@@ -149,14 +145,20 @@ export const authOptions: AuthOptions = {
             console.error('Error sending verification email:', error)
           }
         }
+
+        return true
+      } catch (error) {
+        console.error('SignIn callback error:', error)
+        return false
       }
+    }
+  },
+  events: {
+    async signIn({ user, account, profile, isNewUser }) {
+      console.log('SignIn event:', { user, account, isNewUser })
     },
     async createUser({ user }) {
-      // Set default role for new users
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { role: 'user' }
-      })
+      console.log('CreateUser event:', user)
     }
   },
   debug: process.env.NODE_ENV === 'development',

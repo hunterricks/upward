@@ -8,6 +8,15 @@ export async function POST(request: Request) {
     const { email, password, name } = await request.json()
     console.log('Registration attempt for email:', email)
 
+    // Test database connection
+    try {
+      await prisma.$connect()
+      console.log('Database connection successful')
+    } catch (error) {
+      console.error('Database connection error:', error)
+      throw new Error('Database connection failed')
+    }
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -41,6 +50,12 @@ export async function POST(request: Request) {
     const token = await generateVerificationToken(user.id)
     console.log('Token generated:', token.substring(0, 10) + '...')
     
+    // Verify token was stored
+    const storedToken = await prisma.verificationToken.findUnique({
+      where: { token },
+    })
+    console.log('Stored token:', storedToken ? 'Found' : 'Not found')
+
     const emailData = generateVerificationEmail(email, token)
     console.log('Sending verification email to:', email)
     await sendEmail(emailData)
@@ -49,12 +64,21 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: 'Registration successful',
+      debug: {
+        userId: user.id,
+        tokenStored: !!storedToken
+      }
     })
   } catch (error: any) {
     console.error('Registration error:', error)
     return NextResponse.json(
-      { error: 'Registration failed' },
+      { 
+        error: 'Registration failed',
+        details: error.message
+      },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }

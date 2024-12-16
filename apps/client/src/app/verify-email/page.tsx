@@ -9,18 +9,24 @@ export default function VerifyEmailPage() {
   const token = searchParams.get('token')
   const [status, setStatus] = useState('Verifying...')
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasAttempted, setHasAttempted] = useState(false)
 
   useEffect(() => {
     const verifyEmail = async () => {
+      // Prevent multiple verification attempts
+      if (hasAttempted) return
+      setHasAttempted(true)
+
       try {
         if (!token) {
           setError('No verification token provided')
+          setIsLoading(false)
           return
         }
 
-        console.log('Making verification request with token:', token)
+        console.log('Making verification request with token:', token.substring(0, 10) + '...')
         const apiUrl = `${window.location.origin}/api/auth/verify-email?token=${token}`
-        console.log('API URL:', apiUrl)
 
         const response = await fetch(apiUrl, {
           method: 'GET',
@@ -30,32 +36,29 @@ export default function VerifyEmailPage() {
           },
         })
         
-        console.log('Response status:', response.status)
-        const data = await response.json().catch(e => {
-          console.error('Error parsing response:', e)
-          return null
-        })
-        console.log('Response data:', data)
+        const data = await response.json()
 
-        if (!response.ok) {
-          throw new Error(data?.error || `Verification failed: ${response.status}`)
+        if (response.ok) {
+          setStatus('Email verified successfully!')
+          setTimeout(() => {
+            router.push('/auth/email-verified')
+          }, 2000)
+        } else {
+          throw new Error(data.error || 'Verification failed')
         }
-
-        setStatus('Email verified successfully!')
-        setTimeout(() => {
-          router.push('/auth/email-verified')
-        }, 2000)
       } catch (error: any) {
         console.error('Verification error:', error)
         setError(error.message || 'An error occurred during verification')
         setTimeout(() => {
           router.push('/auth/error?message=' + encodeURIComponent(error.message || 'An error occurred during verification'))
         }, 2000)
+      } finally {
+        setIsLoading(false)
       }
     }
 
     verifyEmail()
-  }, [token, router])
+  }, [token, router, hasAttempted])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -100,9 +103,11 @@ export default function VerifyEmailPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                  </div>
+                  {isLoading && (
+                    <div className="mt-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
