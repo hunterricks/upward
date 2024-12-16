@@ -5,6 +5,9 @@ import type { NextRequest } from "next/server"
 // List of public routes that don't require authentication
 const publicRoutes = ['/', '/login', '/register']
 
+// List of protected routes that require authentication
+const protectedRoutes = ['/dashboard']
+
 export default withAuth(
   function middleware(req: NextRequest) {
     return NextResponse.next()
@@ -19,8 +22,16 @@ export default withAuth(
           return true
         }
 
-        // Require authentication for all other routes
-        return !!token
+        // Check if the route is protected
+        const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
+
+        // If it's a protected route, require authentication
+        if (isProtectedRoute) {
+          return !!token
+        }
+
+        // Allow other routes
+        return true
       },
     },
   }
