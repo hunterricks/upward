@@ -75,6 +75,9 @@ importers:
       '@prisma/client':
         specifier: ^6.0.1
         version: 6.0.1(prisma@6.0.1)
+      dotenv:
+        specifier: ^16.0.3
+        version: 16.0.3
       next:
         specifier: 14.0.4
         version: 14.0.4(@babel/core@7.26.0)(react-dom@18.3.1(react@18.2.0))(react@18.2.0)
@@ -106,6 +109,9 @@ importers:
       concurrently:
         specifier: ^7.6.0
         version: 7.6.0
+      dotenv-cli:
+        specifier: ^7.4.4
+        version: 7.4.4
       eslint:
         specifier: ^8.55.0
         version: 8.57.1
@@ -3241,12 +3247,20 @@ packages:
     resolution: {integrity: sha512-QM8q3zDe58hqUqjraQOmzZ1LIH9SWQJTlEKCH4kJ2oQvLZk7RbQXvtDM2XEq3fwkV9CCvvH4LA0AV+ogFsBM2Q==}
     engines: {node: '>=8'}
 
+  dotenv-cli@7.4.4:
+    resolution: {integrity: sha512-XkBYCG0tPIes+YZr4SpfFv76SQrV/LeCE8CI7JSEMi3VR9MvTihCGTOtbIexD6i2mXF+6px7trb1imVCXSNMDw==}
+    hasBin: true
+
   dotenv-expand@10.0.0:
     resolution: {integrity: sha512-GopVGCpVS1UKH75VKHGuQFqS1Gusej0z4FyQkPdwjil2gNIv+LNsqBlboOzpJFZKVT95GkCyWJbBSdFEFUWI2A==}
     engines: {node: '>=12'}
 
   dotenv@16.0.3:
     resolution: {integrity: sha512-7GO6HghkA5fYG9TYnNxi14/7K9f5occMlp3zXAuSxn7CKCxt9xbNWG7yF8hTCSUchlfWSe3uLmlPfigevRItzQ==}
+    engines: {node: '>=12'}
+
+  dotenv@16.4.7:
+    resolution: {integrity: sha512-47qPchRCykZC03FhkYAhrvwU4xDBFIj1QPqaarj6mdM/hgUzfPHcpkHJOn3mJAufFeeAxAzeGsr5X0M4k6fLZQ==}
     engines: {node: '>=12'}
 
   dunder-proto@1.0.0:
@@ -11209,9 +11223,18 @@ snapshots:
     dependencies:
       is-obj: 2.0.0
 
+  dotenv-cli@7.4.4:
+    dependencies:
+      cross-spawn: 7.0.6
+      dotenv: 16.4.7
+      dotenv-expand: 10.0.0
+      minimist: 1.2.8
+
   dotenv-expand@10.0.0: {}
 
   dotenv@16.0.3: {}
+
+  dotenv@16.4.7: {}
 
   dunder-proto@1.0.0:
     dependencies:

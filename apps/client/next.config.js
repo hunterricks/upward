@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@upward/ui"],
   env: {
-    PORT: 3000,
+    PORT: "3000",
   },
 }
 
