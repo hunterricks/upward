@@ -32,6 +32,7 @@ export function AuthForm({ type, onSubmit, isAdmin }: AuthFormProps) {
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -72,14 +73,60 @@ export function AuthForm({ type, onSubmit, isAdmin }: AuthFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validateForm()) return
+    setIsLoading(true)
+    setErrors({})
 
     try {
-      setIsLoading(true)
-      await onSubmit(formData)
-    } catch (error) {
-      console.error('Form submission error:', error)
-      setErrors({ submit: 'An error occurred. Please try again.' })
+      if (type === 'register') {
+        // Check password strength
+        const { score, feedback } = checkPasswordStrength(formData.password)
+        if (score < 3) {
+          setErrors({ password: feedback || 'Password is not strong enough' })
+          setIsLoading(false)
+          return
+        }
+
+        // Register the user
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: formData.email, password: formData.password, name: formData.fullName }),
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Registration failed')
+        }
+
+        // Show success message
+        setSuccessMessage('Registration successful! Please check your email to verify your account.')
+        
+        // Sign in the user
+        await signIn('credentials', {
+          email: formData.email,
+          password: formData.password,
+          callbackUrl: '/dashboard',
+          redirect: true,
+        })
+      } else {
+        // Login
+        const result = await signIn('credentials', {
+          email: formData.email,
+          password: formData.password,
+          redirect: false,
+        })
+
+        if (result?.error) {
+          setErrors({ submit: 'Invalid email or password' })
+          return
+        }
+
+        router.push('/dashboard')
+      }
+    } catch (error: any) {
+      console.error('Auth error:', error)
+      setErrors({ submit: error.message || 'An error occurred' })
     } finally {
       setIsLoading(false)
     }
@@ -205,6 +252,32 @@ export function AuthForm({ type, onSubmit, isAdmin }: AuthFormProps) {
               </div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-red-800">{errors.submit}</h3>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="rounded-md bg-green-50 p-4 mt-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-green-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-green-800">
+                  {successMessage}
+                </p>
               </div>
             </div>
           </div>

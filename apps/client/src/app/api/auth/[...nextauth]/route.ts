@@ -6,6 +6,7 @@ import AppleProvider from "next-auth/providers/apple"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { rateLimit } from "@/lib/rate-limit"
+import { generateVerificationToken, generateVerificationEmail, sendEmail } from '@/lib/email'
 
 const prisma = new PrismaClient()
 
@@ -78,16 +79,30 @@ export const authOptions: AuthOptions = {
     async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id
-        token.role = user.role // Add role to token
+        token.role = user.role
         token.emailVerified = user.emailVerified
       }
       if (account) {
         token.accessToken = account.access_token
         token.provider = account.provider
       }
+
+      // Check if user still exists
+      const userExists = await prisma.user.findUnique({
+        where: { id: token.id as string },
+      })
+
+      if (!userExists) {
+        return null // This will force a session end
+      }
+
       return token
     },
     async session({ session, token }) {
+      if (!token) {
+        return null // User was deleted, end session
+      }
+
       if (session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as string
@@ -125,8 +140,14 @@ export const authOptions: AuthOptions = {
         })
 
         // If email provider, send verification email
-        if (account?.provider === 'credentials') {
-          // Send verification email logic here
+        if (account?.provider === 'credentials' && user.email) {
+          try {
+            const token = await generateVerificationToken(user.id)
+            const emailData = generateVerificationEmail(user.email, token)
+            await sendEmail(emailData)
+          } catch (error) {
+            console.error('Error sending verification email:', error)
+          }
         }
       }
     },
