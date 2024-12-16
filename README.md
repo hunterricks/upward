@@ -100,6 +100,20 @@ The administrative interface for managing clients and projects. Features include
 
 Each application may require its own environment variables. Check the respective README files in each app directory for specific requirements.
 
+## Authentication Environment Variables
+
+Required environment variables for the authentication system:
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/upward_db
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-here
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+APPLE_ID=your-apple-id
+APPLE_SECRET=your-apple-secret
+```
+
 ## Application Architecture
 
 ```

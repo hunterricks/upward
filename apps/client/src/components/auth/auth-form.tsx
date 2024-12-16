@@ -5,13 +5,16 @@ import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { handleGoogleSignIn } from '@/lib/auth'
+import { FaApple } from 'react-icons/fa'
+import { checkPasswordStrength } from '@/lib/password'
 
 interface AuthFormProps {
   type: 'login' | 'register'
   onSubmit: (data: any) => void
+  isAdmin?: boolean
 }
 
-export function AuthForm({ type, onSubmit }: AuthFormProps) {
+export function AuthForm({ type, onSubmit, isAdmin }: AuthFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -20,6 +23,12 @@ export function AuthForm({ type, onSubmit }: AuthFormProps) {
     confirmPassword: '',
     companyName: '',
     fullName: '',
+    role: 'user',
+  })
+
+  const [passwordStrength, setPasswordStrength] = useState({
+    score: 0,
+    feedback: '',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -37,6 +46,8 @@ export function AuthForm({ type, onSubmit }: AuthFormProps) {
       newErrors.password = 'Password is required'
     } else if (formData.password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters'
+    } else if (passwordStrength.score < 2) {
+      newErrors.password = 'Password is too weak'
     }
 
     if (type === 'register') {
@@ -89,9 +100,31 @@ export function AuthForm({ type, onSubmit }: AuthFormProps) {
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAppleClick = async () => {
+    try {
+      setIsLoading(true)
+      await signIn('apple', {
+        callbackUrl: '/dashboard',
+        redirect: true,
+      })
+    } catch (error) {
+      console.error('Apple sign-in error:', error)
+      setErrors({ submit: 'An error occurred during sign in. Please try again.' })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+    
+    // Update password strength when password changes
+    if (name === 'password') {
+      const strength = checkPasswordStrength(value)
+      setPasswordStrength(strength)
+    }
+    
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
@@ -127,6 +160,18 @@ export function AuthForm({ type, onSubmit }: AuthFormProps) {
           </svg>
           <span className="text-sm font-semibold leading-6">
             {isLoading ? 'Signing in...' : `${type === 'login' ? 'Sign in' : 'Continue'} with Google`}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleAppleClick}
+          disabled={isLoading}
+          className="flex w-full justify-center items-center gap-3 rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black/90"
+        >
+          <FaApple className="h-5 w-5" />
+          <span>
+            {isLoading ? 'Signing in...' : `${type === 'login' ? 'Sign in' : 'Continue'} with Apple`}
           </span>
         </button>
 
@@ -200,6 +245,25 @@ export function AuthForm({ type, onSubmit }: AuthFormProps) {
                 <p className="mt-1 text-sm text-red-600">{errors.companyName}</p>
               )}
             </div>
+
+            {isAdmin && (
+              <div>
+                <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+                  Role
+                </label>
+                <select
+                  id="role"
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                </select>
+              </div>
+            )}
           </>
         )}
 
@@ -232,6 +296,40 @@ export function AuthForm({ type, onSubmit }: AuthFormProps) {
             onChange={handleChange}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
+          {type === 'register' && formData.password && (
+            <div className="mt-1">
+              <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${
+                    passwordStrength.score <= 1
+                      ? 'bg-red-500'
+                      : passwordStrength.score === 2
+                      ? 'bg-yellow-500'
+                      : passwordStrength.score === 3
+                      ? 'bg-green-500'
+                      : 'bg-green-600'
+                  }`}
+                  style={{ width: `${(passwordStrength.score / 4) * 100}%` }}
+                />
+              </div>
+              <p className={`mt-1 text-sm ${
+                passwordStrength.score <= 1
+                  ? 'text-red-600'
+                  : passwordStrength.score === 2
+                  ? 'text-yellow-600'
+                  : 'text-green-600'
+              }`}>
+                {passwordStrength.feedback || 'Password strength: ' + 
+                  (passwordStrength.score <= 1 
+                    ? 'Weak' 
+                    : passwordStrength.score === 2 
+                    ? 'Fair' 
+                    : passwordStrength.score === 3 
+                    ? 'Good' 
+                    : 'Strong')}
+              </p>
+            </div>
+          )}
           {errors.password && (
             <p className="mt-1 text-sm text-red-600">{errors.password}</p>
           )}
@@ -259,9 +357,13 @@ export function AuthForm({ type, onSubmit }: AuthFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+          className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50"
         >
-          {type === 'login' ? 'Sign In' : 'Create Account'}
+          {isLoading 
+            ? 'Please wait...' 
+            : type === 'login' 
+            ? 'Sign In' 
+            : 'Create Account'}
         </button>
 
         <p className="mt-4 text-center text-sm text-gray-600">

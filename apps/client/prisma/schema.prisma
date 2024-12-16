@@ -42,10 +42,13 @@ model User {
   name          String?
   email         String?   @unique
   emailVerified DateTime?
+  password      String?   // For credentials provider
   image         String?
-  companyName   String?
+  role          String    @default("user")
   accounts      Account[]
   sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model VerificationToken {
