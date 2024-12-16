@@ -31,94 +31,86 @@ The client portal for UPWARD design and development studio. This application pro
 - Document signing
 - Feedback system
 
-## Development
+## Recent Updates
+- [2024-12-16] Initial database setup completed with PostgreSQL and Prisma
+  - Added User, Account, Session, and VerificationToken models
+  - Database running in Docker container on port 5433
+  - Migrations system initialized
+
+## Development Setup
 
 ### Prerequisites
-- Node.js 18+
-- pnpm
-- PostgreSQL 14+
-- Cloudflared CLI (for tunnel access)
+- Docker
+- Node.js >= 18
+- pnpm >= 8
 
-### Setup
+### Environment Variables
+Create a `.env.local` file in the client app directory with the following variables:
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/upward_db
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-here
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+```
+
+### Database Setup
+The application uses PostgreSQL running in Docker. The database will be automatically started when running `pnpm dev`.
+
+Manual database commands:
+```bash
+# Start the database container
+./scripts/start-docker.sh
+
+# Run migrations
+pnpm prisma migrate dev
+
+# Reset database
+pnpm prisma migrate reset
+
+# Open Prisma Studio
+pnpm prisma studio
+```
+
+### Getting Started
 
 1. Install dependencies:
 ```bash
 pnpm install
 ```
 
-2. Set up your PostgreSQL database:
+2. Generate Prisma client and run migrations:
 ```bash
-# Create the database if it doesn't exist
-createdb upward_client
+pnpm prisma generate
+pnpm prisma migrate dev
 ```
 
-3. Set up your environment variables in `.env`:
-```env
-# Database
-DATABASE_URL="postgresql://username@localhost:5432/upward_client"
-
-# NextAuth
-NEXTAUTH_URL="https://app.upwardwebdesign.com"  # Use http://localhost:3002 for local-only development
-NEXTAUTH_SECRET="your-secret-here"
-
-# OAuth Provider
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-```
-
-### Google OAuth Setup
-
-1. Go to the [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project or select an existing one
-3. Enable the Google+ API
-4. Go to Credentials → Create Credentials → OAuth 2.0 Client ID
-5. Configure the OAuth consent screen
-6. Add authorized redirect URIs:
-   - `http://localhost:3002/api/auth/callback/google` (for local development)
-   - `https://app.upwardwebdesign.com/api/auth/callback/google` (for production)
-7. Add authorized JavaScript origins:
-   - `http://localhost:3002` (for local development)
-   - `https://app.upwardwebdesign.com` (for production)
-8. Copy the client ID and secret to your `.env` file
-
-### Development Commands
-
+3. Start the development server:
 ```bash
-# Start development server with Cloudflare tunnel (default)
-# This will automatically:
-# - Clean up any existing processes on required ports
-# - Start the Next.js server on port 3002
-# - Start the Cloudflare tunnel for remote access
 pnpm dev
-
-# Start development server locally only (no tunnel)
-pnpm dev:local
-
-# Build for production
-pnpm build
-
-# Start production server
-pnpm start
 ```
 
-### Development URLs
-- Local development: http://localhost:3002
-- Remote access: https://app.upwardwebdesign.com (via Cloudflare tunnel)
+This will:
+- Clean up any existing processes on required ports
+- Start Docker and PostgreSQL if not running
+- Run database migrations if needed
+- Start the Next.js development server
+- Start the Cloudflare tunnel for HTTPS
 
-### Cloudflare Tunnel
-The application automatically starts a Cloudflare tunnel when using `pnpm dev`. This provides:
-- Secure remote access to your local development server
-- Proper OAuth callback handling for remote testing
-- Automatic port management and cleanup
+The application will be available at:
+- Local: http://localhost:3000
+- Tunnel: https://[your-tunnel-url]
 
-The tunnel configuration is stored in `tunnel-config.yml`. You can also manage the tunnel manually:
-```bash
-# View tunnel status
-cloudflared tunnel list
+### Scripts
 
-# Start tunnel manually (if needed)
-cloudflared tunnel --config tunnel-config.yml run
-```
+- `pnpm dev` - Start development server with Docker and Cloudflare tunnel
+- `pnpm dev:local` - Start development server without tunnel
+- `pnpm build` - Build for production
+- `pnpm start` - Start production server
+- `pnpm lint` - Run ESLint
+- `pnpm clean` - Clean build artifacts
+- `pnpm db:migrate` - Run database migrations
+- `pnpm db:studio` - Open Prisma Studio
 
 ## Project Structure
 
@@ -140,10 +132,10 @@ src/
 ## Database Schema
 
 The application uses Prisma with PostgreSQL. Key models include:
-- User: Authentication and user profile
-- Account: OAuth provider accounts
+- User: Core user information
+- Account: OAuth accounts linked to users
 - Session: User sessions
-- VerificationToken: Email verification
+- VerificationToken: Email verification tokens
 
 ## Security
 
