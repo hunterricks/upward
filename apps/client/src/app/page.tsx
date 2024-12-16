@@ -1,92 +1,48 @@
+'use client'
+
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import Image from 'next/image'
 
-export default function Home() {
+export default function HomePage() {
+  const { data: session } = useSession()
+
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Hero Section */}
-      <main className="flex-1">
-        <section className="relative overflow-hidden bg-gray-50 py-24 sm:py-32">
-          <div className="container mx-auto px-4">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div>
-                <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-                  Manage your design projects with ease
-                </h1>
-                <p className="mt-6 text-lg text-gray-600">
-                  UPWARD provides a seamless platform for managing design projects, collaborating with your team, and delivering exceptional results to your clients.
-                </p>
-                <div className="mt-10 flex gap-4">
-                  <Link
-                    href="/register"
-                    className="rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-                  >
-                    Start your free trial
-                  </Link>
-                  <Link
-                    href="/login"
-                    className="rounded-md border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-                  >
-                    Learn more
-                  </Link>
-                </div>
-              </div>
-              <div className="relative hidden lg:block">
-                <Image
-                  src="/dashboard-preview.png"
-                  alt="Dashboard preview"
-                  width={800}
-                  height={600}
-                  className="rounded-lg shadow-xl"
-                />
-              </div>
+    <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-gradient-to-b from-white to-gray-50">
+      <div className="text-center max-w-3xl mx-auto px-4">
+        <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
+          Welcome to UPWARD™
+        </h1>
+        <p className="mt-6 text-lg leading-8 text-gray-600">
+          Your trusted partner in design and development. We bring your ideas to life with precision and creativity.
+        </p>
+        <div className="mt-10 flex items-center justify-center gap-x-6">
+          {!session ? (
+            <>
+              <Link
+                href="/register"
+                className="rounded-md bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                Get started
+              </Link>
+              <Link
+                href="/login"
+                className="text-sm font-semibold leading-6 text-gray-900 hover:text-primary"
+              >
+                Sign in <span aria-hidden="true">→</span>
+              </Link>
+            </>
+          ) : (
+            <div className="text-center">
+              <p className="text-lg font-medium text-gray-900 mb-4">
+                Welcome back, {session.user?.name}!
+              </p>
+              <p className="text-gray-600">
+                You're signed in to your account.
+              </p>
             </div>
-          </div>
-        </section>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-            <div>
-              <h3 className="font-semibold">Product</h3>
-              <ul className="mt-4 space-y-2">
-                <li>
-                  <Link href="#" className="text-sm text-gray-600 hover:text-gray-900">
-                    Features
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-gray-600 hover:text-gray-900">
-                    Pricing
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold">Company</h3>
-              <ul className="mt-4 space-y-2">
-                <li>
-                  <Link href="#" className="text-sm text-gray-600 hover:text-gray-900">
-                    About
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-gray-600 hover:text-gray-900">
-                    Contact
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-8 border-t pt-8">
-            <p className="text-center text-sm text-gray-600">
-              {new Date().getFullYear()} UPWARD. All rights reserved.
-            </p>
-          </div>
+          )}
         </div>
-      </footer>
+      </div>
     </div>
   )
 }

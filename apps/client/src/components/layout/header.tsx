@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 
 export function Header() {
   const { data: session } = useSession()
@@ -35,27 +35,31 @@ export function Header() {
             UPWARD™ Client Portal
           </Link>
           <nav className="flex items-center gap-6">
-            <Link href="/dashboard" className="text-sm font-medium">
+            <Link href="/dashboard" className="text-sm font-medium hover:text-primary">
               Dashboard
-            </Link>
-            <Link href="/projects" className="text-sm font-medium">
-              Projects
-            </Link>
-            <Link href="/messages" className="text-sm font-medium">
-              Messages
-            </Link>
-            <Link href="/documents" className="text-sm font-medium">
-              Documents
             </Link>
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <Link href="/profile" className="text-sm font-medium">
-            Profile
-          </Link>
-          <button className="text-sm font-medium">
-            Sign out
-          </button>
+          <div className="relative group">
+            <button className="flex items-center gap-2 text-sm font-medium">
+              {session.user?.name || session.user?.email}
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m6 9 6 6 6-6"/>
+              </svg>
+            </button>
+            <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <div className="py-1" role="menu">
+                <button
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  role="menuitem"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </header>
