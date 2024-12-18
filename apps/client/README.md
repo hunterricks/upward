@@ -6,11 +6,13 @@ The client portal for UPWARD design and development studio. This application pro
 
 ### Authentication
 - Secure OAuth 2.0 authentication with Google and Apple Sign-in
-- Email/password authentication with form validation
+- Email/password authentication with form validation and email verification
 - Protected routes and session management
 - Secure cookie-based sessions
 - Modern, responsive authentication pages with split-screen layout
 - Social sign-in buttons with branded styling
+- Automatic email verification for OAuth providers
+- Manual email verification for credentials-based registration
 
 ### Client Onboarding
 - Guided onboarding process
@@ -32,6 +34,12 @@ The client portal for UPWARD design and development studio. This application pro
 - Feedback system
 
 ## Recent Updates
+- [2024-12-16] Enhanced Authentication System
+  - Added email verification system using Resend
+  - Implemented Google OAuth integration
+  - Added automatic verification for OAuth users
+  - Improved error handling and user feedback
+  - Added rate limiting for verification attempts
 - [2024-12-16] Initial database setup completed with PostgreSQL and Prisma
   - Added User, Account, Session, and VerificationToken models
   - Database running in Docker container on port 5433
@@ -47,11 +55,22 @@ The client portal for UPWARD design and development studio. This application pro
 ### Environment Variables
 Create a `.env.local` file in the client app directory with the following variables:
 ```env
+# Database
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/upward_db
+
+# Authentication
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=your-secret-here
+
+# OAuth Providers
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
+APPLE_ID=your-apple-id
+APPLE_SECRET=your-apple-secret
+
+# Email Service
+RESEND_API_KEY=your-resend-api-key
+EMAIL_FROM=your-verified-email@domain.com
 ```
 
 ### Database Setup
@@ -99,18 +118,32 @@ This will:
 
 The application will be available at:
 - Local: http://localhost:3000
-- Tunnel: https://[your-tunnel-url]
 
-### Scripts
+### Authentication Flow
 
-- `pnpm dev` - Start development server with Docker and Cloudflare tunnel
-- `pnpm dev:local` - Start development server without tunnel
-- `pnpm build` - Build for production
-- `pnpm start` - Start production server
-- `pnpm lint` - Run ESLint
-- `pnpm clean` - Clean build artifacts
-- `pnpm db:migrate` - Run database migrations
-- `pnpm db:studio` - Open Prisma Studio
+The application supports two authentication methods:
+
+1. **OAuth (Google, Apple)**
+   - Click the provider button
+   - Authenticate with the provider
+   - Automatically verified and logged in
+   - Redirected to dashboard
+
+2. **Email/Password**
+   - Register with email and password
+   - Receive verification email
+   - Click verification link
+   - Log in with credentials
+   - Redirected to dashboard
+
+### Security Features
+
+- Rate limiting on authentication endpoints
+- Secure password hashing with bcrypt
+- JWT-based session management
+- CSRF protection
+- HTTP-only cookies
+- Automatic session invalidation for deleted users
 
 ## Project Structure
 
@@ -136,15 +169,6 @@ The application uses Prisma with PostgreSQL. Key models include:
 - Account: OAuth accounts linked to users
 - Session: User sessions
 - VerificationToken: Email verification tokens
-
-## Security
-
-- All routes except public pages (/login, /register) require authentication
-- Sessions are managed using JWT strategy
-- OAuth 2.0 for secure third-party authentication
-- Database credentials and secrets are managed through environment variables
-- Automatic port cleanup before development server starts
-- Secure tunnel configuration for remote access
 
 ## Contributing
 

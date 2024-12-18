@@ -63,19 +63,43 @@ export const authOptions: AuthOptions = {
       }
     })
   ],
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours
-  },
-  secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: '/login',
     error: '/auth/error',
     verifyRequest: '/verify-request',
-    newUser: '/onboarding'
+    newUser: '/dashboard'
   },
   callbacks: {
+    async signIn({ user, account, profile, email, credentials }) {
+      // Allow OAuth providers to sign in
+      if (account?.provider === 'google' || account?.provider === 'apple') {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email },
+          include: { accounts: true }
+        })
+
+        // If no user exists, allow sign in (new user)
+        if (!existingUser) {
+          return true
+        }
+
+        // If user exists and has an account with this provider, allow sign in
+        if (existingUser.accounts.some(acc => acc.provider === account.provider)) {
+          return true
+        }
+
+        // If user exists but has no password (OAuth-only user), allow linking
+        if (!existingUser.password) {
+          return true
+        }
+
+        // If user exists with password, prevent OAuth sign in
+        return false
+      }
+
+      // For credentials, proceed with normal flow
+      return true
+    },
     async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id
@@ -106,62 +130,32 @@ export const authOptions: AuthOptions = {
         session.provider = token.provider as string
       }
       return session
-    },
-    async signIn({ user, account, profile }) {
-      try {
-        if (account?.provider === 'google') {
-          if (!profile?.email) {
-            console.error('No email provided by Google')
-            return false
-          }
-
-          // Check if user exists
-          const existingUser = await prisma.user.findUnique({
-            where: { email: profile.email }
-          })
-
-          if (!existingUser) {
-            // Create new user for Google sign in - automatically verified
-            await prisma.user.create({
-              data: {
-                email: profile.email,
-                name: profile.name ?? profile.email.split('@')[0],
-                emailVerified: new Date(), // Auto-verified for Google
-                image: profile.image ?? null,
-                role: 'user',
-              }
-            })
-          }
-          return true
-        }
-
-        // Only send verification for credentials provider
-        if (account?.provider === 'credentials' && !user.emailVerified && user.email) {
-          try {
-            const token = await generateVerificationToken(user.id)
-            const emailData = generateVerificationEmail(user.email, token)
-            await sendEmail(emailData)
-          } catch (error) {
-            console.error('Error sending verification email:', error)
-          }
-        }
-
-        return true
-      } catch (error) {
-        console.error('SignIn callback error:', error)
-        return false
-      }
     }
   },
   events: {
     async signIn({ user, account, profile, isNewUser }) {
-      console.log('SignIn event:', { user, account, isNewUser })
+      if (isNewUser && account?.provider === 'google') {
+        // Update user with additional info for new Google users
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            emailVerified: new Date(),
+            role: 'user'
+          }
+        })
+      }
     },
     async createUser({ user }) {
       console.log('CreateUser event:', user)
     }
   },
   debug: process.env.NODE_ENV === 'development',
+  secret: process.env.NEXTAUTH_SECRET,
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours
+  },
 }
 
 const handler = NextAuth(authOptions)

@@ -4,8 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { handleGoogleSignIn } from '@/lib/auth'
-import { FaApple } from 'react-icons/fa'
+import { handleGoogleSignIn, handleCredentialsSignIn } from '@/lib/auth'
 import { checkPasswordStrength } from '@/lib/password'
 
 interface AuthFormProps {
@@ -71,6 +70,19 @@ export function AuthForm({ type, onSubmit, isAdmin }: AuthFormProps) {
     return Object.keys(newErrors).length === 0
   }
 
+  const handleGoogleClick = async () => {
+    try {
+      setIsLoading(true)
+      setErrors({})
+      await handleGoogleSignIn()
+    } catch (error: any) {
+      console.error('Google sign in error:', error)
+      setErrors({ form: 'Failed to sign in with Google' })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -78,85 +90,39 @@ export function AuthForm({ type, onSubmit, isAdmin }: AuthFormProps) {
 
     try {
       if (type === 'register') {
-        // Check password strength
-        const { score, feedback } = checkPasswordStrength(formData.password)
-        if (score < 3) {
-          setErrors({ password: feedback || 'Password is not strong enough' })
-          setIsLoading(false)
-          return
-        }
-
-        // Register the user
-        const res = await fetch('/api/auth/register', {
+        // Register with credentials
+        const response = await fetch('/api/auth/register', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: formData.email, password: formData.password, name: formData.fullName }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+            name: formData.fullName,
+            provider: 'credentials'
+          }),
         })
 
-        const data = await res.json()
+        const data = await response.json()
 
-        if (!res.ok) {
+        if (!response.ok) {
           throw new Error(data.error || 'Registration failed')
         }
 
-        // Show success message
-        setSuccessMessage('Registration successful! Please check your email to verify your account.')
+        setSuccessMessage('Registration successful! Please check your email for verification.')
         
-        // Sign in the user
-        await signIn('credentials', {
-          email: formData.email,
-          password: formData.password,
-          callbackUrl: '/dashboard',
-          redirect: true,
-        })
+        // Automatically sign in after registration
+        await handleCredentialsSignIn(formData.email, formData.password)
+        router.push('/dashboard')
       } else {
-        // Login
-        const result = await signIn('credentials', {
-          email: formData.email,
-          password: formData.password,
-          redirect: false,
-        })
-
-        if (result?.error) {
-          setErrors({ submit: 'Invalid email or password' })
-          return
-        }
-
+        // Login with credentials
+        await handleCredentialsSignIn(formData.email, formData.password)
         router.push('/dashboard')
       }
     } catch (error: any) {
-      console.error('Auth error:', error)
-      setErrors({ submit: error.message || 'An error occurred' })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleGoogleClick = async () => {
-    try {
-      setIsLoading(true)
-      await signIn('google', {
-        callbackUrl: '/dashboard',
-        redirect: true,
-      })
-    } catch (error) {
-      console.error('Google sign-in error:', error)
-      setErrors({ submit: 'An error occurred during sign in. Please try again.' })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleAppleClick = async () => {
-    try {
-      setIsLoading(true)
-      await signIn('apple', {
-        callbackUrl: '/dashboard',
-        redirect: true,
-      })
-    } catch (error) {
-      console.error('Apple sign-in error:', error)
-      setErrors({ submit: 'An error occurred during sign in. Please try again.' })
+      console.error('Form submission error:', error)
+      setErrors({ form: error.message || 'An error occurred' })
     } finally {
       setIsLoading(false)
     }
@@ -206,59 +172,50 @@ export function AuthForm({ type, onSubmit, isAdmin }: AuthFormProps) {
             />
           </svg>
           <span className="text-sm font-semibold leading-6">
-            {isLoading ? 'Signing in...' : `${type === 'login' ? 'Sign in' : 'Continue'} with Google`}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={handleAppleClick}
-          disabled={isLoading}
-          className="flex w-full justify-center items-center gap-3 rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black/90"
-        >
-          <FaApple className="h-5 w-5" />
-          <span>
-            {isLoading ? 'Signing in...' : `${type === 'login' ? 'Sign in' : 'Continue'} with Apple`}
+            {isLoading ? 'Processing...' : `${type === 'login' ? 'Sign in' : 'Sign up'} with Google`}
           </span>
         </button>
 
         <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300" />
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <div className="w-full border-t border-gray-200" />
           </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-2 text-gray-500">Or continue with</span>
+          <div className="relative flex justify-center text-sm font-medium leading-6">
+            <span className="bg-white px-6 text-gray-900">
+              {type === 'login' ? 'Or sign in with email' : 'Or sign up with email'}
+            </span>
           </div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {errors.submit && (
+        {errors.form && (
           <div className="rounded-md bg-red-50 p-4">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg
                   className="h-5 w-5 text-red-400"
+                  xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                   aria-hidden="true"
                 >
                   <path
                     fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                     clipRule="evenodd"
                   />
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">{errors.submit}</h3>
+                <h3 className="text-sm font-medium text-red-800">{errors.form}</h3>
               </div>
             </div>
           </div>
         )}
 
         {successMessage && (
-          <div className="rounded-md bg-green-50 p-4 mt-4">
+          <div className="rounded-md bg-green-50 p-4">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg
@@ -275,9 +232,7 @@ export function AuthForm({ type, onSubmit, isAdmin }: AuthFormProps) {
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="text-sm font-medium text-green-800">
-                  {successMessage}
-                </p>
+                <p className="text-sm font-medium text-green-800">{successMessage}</p>
               </div>
             </div>
           </div>
@@ -286,177 +241,152 @@ export function AuthForm({ type, onSubmit, isAdmin }: AuthFormProps) {
         {type === 'register' && (
           <>
             <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="fullName" className="block text-sm font-medium leading-6 text-gray-900">
                 Full Name
               </label>
-              <input
-                type="text"
-                id="fullName"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              {errors.fullName && (
-                <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
-              )}
+              <div className="mt-2">
+                <input
+                  id="fullName"
+                  name="fullName"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  className={`block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset ${
+                    errors.fullName ? 'ring-red-300' : 'ring-gray-300'
+                  } placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6`}
+                />
+                {errors.fullName && (
+                  <p className="mt-2 text-sm text-red-600">{errors.fullName}</p>
+                )}
+              </div>
             </div>
 
             <div>
-              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="companyName" className="block text-sm font-medium leading-6 text-gray-900">
                 Company Name
               </label>
-              <input
-                type="text"
-                id="companyName"
-                name="companyName"
-                value={formData.companyName}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              {errors.companyName && (
-                <p className="mt-1 text-sm text-red-600">{errors.companyName}</p>
-              )}
-            </div>
-
-            {isAdmin && (
-              <div>
-                <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                  Role
-                </label>
-                <select
-                  id="role"
-                  name="role"
-                  value={formData.role}
+              <div className="mt-2">
+                <input
+                  id="companyName"
+                  name="companyName"
+                  type="text"
+                  autoComplete="organization"
+                  required
+                  value={formData.companyName}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                  <option value="manager">Manager</option>
-                </select>
+                  className={`block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset ${
+                    errors.companyName ? 'ring-red-300' : 'ring-gray-300'
+                  } placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6`}
+                />
+                {errors.companyName && (
+                  <p className="mt-2 text-sm text-red-600">{errors.companyName}</p>
+                )}
               </div>
-            )}
+            </div>
           </>
         )}
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email
+          <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900">
+            Email address
           </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-          )}
+          <div className="mt-2">
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={formData.email}
+              onChange={handleChange}
+              className={`block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset ${
+                errors.email ? 'ring-red-300' : 'ring-gray-300'
+              } placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6`}
+            />
+            {errors.email && (
+              <p className="mt-2 text-sm text-red-600">{errors.email}</p>
+            )}
+          </div>
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900">
             Password
           </label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          {type === 'register' && formData.password && (
-            <div className="mt-1">
-              <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-300 ${
-                    passwordStrength.score <= 1
-                      ? 'bg-red-500'
-                      : passwordStrength.score === 2
-                      ? 'bg-yellow-500'
-                      : passwordStrength.score === 3
-                      ? 'bg-green-500'
-                      : 'bg-green-600'
-                  }`}
-                  style={{ width: `${(passwordStrength.score / 4) * 100}%` }}
-                />
-              </div>
-              <p className={`mt-1 text-sm ${
-                passwordStrength.score <= 1
-                  ? 'text-red-600'
-                  : passwordStrength.score === 2
-                  ? 'text-yellow-600'
-                  : 'text-green-600'
-              }`}>
-                {passwordStrength.feedback || 'Password strength: ' + 
-                  (passwordStrength.score <= 1 
-                    ? 'Weak' 
-                    : passwordStrength.score === 2 
-                    ? 'Fair' 
-                    : passwordStrength.score === 3 
-                    ? 'Good' 
-                    : 'Strong')}
-              </p>
-            </div>
-          )}
-          {errors.password && (
-            <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-          )}
+          <div className="mt-2">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete={type === 'register' ? 'new-password' : 'current-password'}
+              required
+              value={formData.password}
+              onChange={handleChange}
+              className={`block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset ${
+                errors.password ? 'ring-red-300' : 'ring-gray-300'
+              } placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6`}
+            />
+            {errors.password && (
+              <p className="mt-2 text-sm text-red-600">{errors.password}</p>
+            )}
+          </div>
         </div>
 
         {type === 'register' && (
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium leading-6 text-gray-900">
               Confirm Password
             </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            {errors.confirmPassword && (
-              <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
-            )}
+            <div className="mt-2">
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                required
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className={`block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset ${
+                  errors.confirmPassword ? 'ring-red-300' : 'ring-gray-300'
+                } placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6`}
+              />
+              {errors.confirmPassword && (
+                <p className="mt-2 text-sm text-red-600">{errors.confirmPassword}</p>
+              )}
+            </div>
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50"
-        >
-          {isLoading 
-            ? 'Please wait...' 
-            : type === 'login' 
-            ? 'Sign In' 
-            : 'Create Account'}
-        </button>
-
-        <p className="mt-4 text-center text-sm text-gray-600">
-          {type === 'login' ? (
-            <>
-              Don't have an account?{' '}
-              <Link href="/register" className="font-semibold text-primary hover:underline">
-                Register
-              </Link>
-            </>
-          ) : (
-            <>
-              Already have an account?{' '}
-              <Link href="/login" className="font-semibold text-primary hover:underline">
-                Sign in
-              </Link>
-            </>
-          )}
-        </p>
+        <div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
+          >
+            {isLoading ? 'Processing...' : type === 'login' ? 'Sign in' : 'Create account'}
+          </button>
+        </div>
       </form>
+
+      <p className="mt-10 text-center text-sm text-gray-500">
+        {type === 'login' ? (
+          <>
+            Don't have an account?{' '}
+            <Link href="/register" className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500">
+              Sign up
+            </Link>
+          </>
+        ) : (
+          <>
+            Already have an account?{' '}
+            <Link href="/login" className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500">
+              Sign in
+            </Link>
+          </>
+        )}
+      </p>
     </div>
   )
 }

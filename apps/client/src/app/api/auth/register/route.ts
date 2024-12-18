@@ -5,8 +5,8 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name } = await request.json()
-    console.log('Registration attempt for email:', email)
+    const { email, password, name, provider } = await request.json()
+    console.log('Registration attempt for email:', email, 'with provider:', provider)
 
     // Test database connection
     try {
@@ -22,19 +22,36 @@ export async function POST(request: Request) {
       where: { email },
     })
 
+    // If user exists and trying to register with Google, return success
+    if (existingUser && provider === 'google') {
+      return NextResponse.json({ success: true })
+    }
+
+    // If user exists and trying to register with credentials, return error
     if (existingUser) {
       console.log('User already exists:', email)
       return NextResponse.json(
-        { error: 'Email already registered' },
+        { error: 'This email is already registered. Please try signing in instead.' },
         { status: 400 }
       )
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10)
+    // For Google registration, create user without password
+    if (provider === 'google') {
+      const user = await prisma.user.create({
+        data: {
+          email,
+          name,
+          emailVerified: new Date(),
+          role: 'user',
+        },
+      })
+      console.log('Google user created:', { id: user.id, email: user.email })
+      return NextResponse.json({ success: true })
+    }
 
-    // Create user
-    console.log('Creating new user:', email)
+    // For credentials registration
+    const hashedPassword = await bcrypt.hash(password, 10)
     const user = await prisma.user.create({
       data: {
         email,
@@ -43,39 +60,22 @@ export async function POST(request: Request) {
         role: 'user',
       },
     })
-    console.log('User created:', { id: user.id, email: user.email })
+    console.log('Credentials user created:', { id: user.id, email: user.email })
 
-    // Generate and send verification email
+    // Generate and send verification email for credentials users
     console.log('Generating verification token for user:', user.id)
     const token = await generateVerificationToken(user.id)
     console.log('Token generated:', token.substring(0, 10) + '...')
-    
-    // Verify token was stored
-    const storedToken = await prisma.verificationToken.findUnique({
-      where: { token },
-    })
-    console.log('Stored token:', storedToken ? 'Found' : 'Not found')
 
     const emailData = generateVerificationEmail(email, token)
-    console.log('Sending verification email to:', email)
     await sendEmail(emailData)
-    console.log('Verification email sent')
+    console.log('Verification email sent to:', email)
 
-    return NextResponse.json({
-      success: true,
-      message: 'Registration successful',
-      debug: {
-        userId: user.id,
-        tokenStored: !!storedToken
-      }
-    })
+    return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error('Registration error:', error)
     return NextResponse.json(
-      { 
-        error: 'Registration failed',
-        details: error.message
-      },
+      { error: 'An error occurred during registration' },
       { status: 500 }
     )
   } finally {
